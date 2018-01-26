@@ -40,14 +40,16 @@ export class JobDetail {
   }
 
   save() {
-    this.api.saveJob(this.job).then(job => {
-      this.job = job;
-      this.originalJob = JSON.parse(JSON.stringify(job));
-      this.routeConfig.navModel.setTitle(job.firstName);
-      this.ea.publish(new JobUpdated(this.job));
-    });
+    this.api.updateJob(this.job).then(
+      job => {
+        this.job = job;
+        this.originalJob = JSON.parse(JSON.stringify(job));
+        this.routeConfig.navModel.setTitle(job.firstName);
+        this.ea.publish(new JobUpdated(this.job));
+      },
+      error => alert('updateJob: ' + error)
+    );
   }
-
 
   /**
    * "canDeactivate" is a life-cycle method for routed components,
@@ -60,7 +62,7 @@ export class JobDetail {
       let result = confirm('You have unsaved changes. Are you sure you wish to leave?');
 
       if (!result) {
-        this.ea.publish(new JobViewed(this.job)); // indicate we are returning to view the current jobl
+        this.ea.publish(new JobViewed(this.job)); // indicate we are returning to view the current job
       }
 
       return result;

@@ -19,7 +19,12 @@ httpClient.configure(config => {
         console.log('HTTP request: ' + request);
         // request.headers.append('Authorization', authHeader);
         return request;
+      },
+      response(response) {
+        console.log(`Received ${response.status} ${response.statusText} ${response.url}`);
+        return response; // you can return a modified Response
       }
+
     });
 });
 
@@ -40,7 +45,7 @@ export class WebAPI {
 
   addJob(job) {
     var promise = new Promise((resolve, reject) => {
-      this.httpFetch.fetch(this.apiRoot + 'api/Jobs', {
+      httpClient.fetch(this.apiRoot + 'api/Jobs', {
         method: 'POST',
         body: json(job) // json is a helper provided buy Aurelia
       }).then(response => response.json())
@@ -79,30 +84,40 @@ export class WebAPI {
       }, latency);
     });
   }
-  
 
-  // TODO
-  saveJobOld(job) {
+  updateJob(job) {
     this.isRequesting = true;
-    return new Promise(resolve => {
-      setTimeout(() => {
-        let instance = JSON.parse(JSON.stringify(job));
-        let found = jobs.filter(x => x.id == job.id)[0];
-
-        if (found) {
-          let index = jobs.indexOf(found);
-          jobs[index] = instance;
+    var promise = new Promise((resolve, reject) => {
+      httpClient.fetch('jobs/' + job.id, {
+        method: 'PUT',
+        body: json(job)
+      }).then(response => {
+        if (response.status != 200) {
+          response.text()
+            .then(text => reject(`HTTP call failed: ${response.status} ${response.statusText}\r\n${response.url}\r\nresponse body:\r\n${text}`));
         } else {
-          instance.id = getId();
-          jobs.push(instance);
+          new Promise((resolve) => resolve(response))
+            .then(response => response.json())
+            .then(data => {
+              let instance = JSON.parse(JSON.stringify(data));
+              let found = this.jobs.filter(x => x.id == job.id)[0];
+              if (found) {
+                let index = jobs.indexOf(found);
+                jobs[index] = instance;
+              } else {
+                throw Error('Internal nervous breakdown, why is Job ID not in jobs array? ' + job.id);
+              }
+              resolve(data);
+            });
         }
-
-        this.isRequesting = false;
-        resolve(instance);
-      }, latency);
+      }).catch(err => {
+        reject(err);
+      }).finally(() => this.isRequesting = false);
     });
+    return promise;
   }
 
+  // TODO
   saveJob(job) {
     this.isRequesting = true;
     return new Promise(resolve => {
